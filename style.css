@@ -47,7 +47,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ==================== 生日页 ==================== */
-#birthday-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+#birthday-page { min-height: 100vh; align-items: center; justify-content: center; }
+#birthday-page.active { display: flex; }
 .bd-wrap { text-align: center; padding: 40px 24px; max-width: 420px; }
 .bd-h2 { font-family: 'Noto Serif SC', serif; font-size: 24px; margin-bottom: 10px; }
 .bd-sub { font-size: 14px; color: #8a7f6a; margin-bottom: 30px; }
@@ -84,7 +85,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ==================== 加载页（米色） ==================== */
-#load-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg,#ddd2b8,#cfc2a4); }
+#load-page { min-height: 100vh; align-items: center; justify-content: center; background: linear-gradient(160deg,#ddd2b8,#cfc2a4); }
+#load-page.active { display: flex; }
 .load-wrap { text-align: center; color: #4a4030; padding: 40px 28px; max-width: 420px; width: 100%; }
 .load-h2 { font-family: 'Noto Serif SC', serif; font-size: 24px; margin-bottom: 12px; }
 .load-sub { font-size: 13px; opacity: 0.75; line-height: 1.8; margin-bottom: 30px; }
