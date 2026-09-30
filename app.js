@@ -151,13 +151,13 @@ function drawRadar(canvasId, radar) {
       const x = cx + rr * Math.cos(ang), y = cy + rr * Math.sin(ang);
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgba(120,110,160,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = 'rgba(140,120,80,0.18)'; ctx.lineWidth = 1; ctx.stroke();
   }
   for (let i = 0; i < n; i++) {
     const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
     ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.lineTo(cx + R * Math.cos(ang), cy + R * Math.sin(ang));
-    ctx.strokeStyle = 'rgba(120,110,160,0.15)'; ctx.stroke();
+    ctx.strokeStyle = 'rgba(140,120,80,0.15)'; ctx.stroke();
   }
   // 数据
   ctx.beginPath();
@@ -170,12 +170,12 @@ function drawRadar(canvasId, radar) {
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
   ctx.closePath();
-  ctx.fillStyle = 'rgba(122,102,200,0.22)'; ctx.fill();
-  ctx.strokeStyle = '#7a66c8'; ctx.lineWidth = 2; ctx.stroke();
-  pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fillStyle = '#7a66c8'; ctx.fill(); });
+  ctx.fillStyle = 'rgba(160,130,60,0.22)'; ctx.fill();
+  ctx.strokeStyle = '#a0823c'; ctx.lineWidth = 2; ctx.stroke();
+  pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fillStyle = '#a0823c'; ctx.fill(); });
   // 标签
   ctx.font = '12px "Noto Sans SC", sans-serif';
-  ctx.fillStyle = '#6a6480'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#6a6252'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   radar.forEach((d, i) => {
     const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
     ctx.fillText(d.label, cx + (R + 30) * Math.cos(ang), cy + (R + 24) * Math.sin(ang));
