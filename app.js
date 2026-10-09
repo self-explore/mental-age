@@ -1,6 +1,7 @@
 // ==================== 状态 ====================
 let answers = [];          // 每题所选 option index
 let actualAge = 0;
+let lastResult = null;     // 缓存结果供长图分享
 
 // ==================== 视图切换 ====================
 function show(id) {
@@ -116,7 +117,8 @@ function compute() {
   const special = SPECIALS.map(s => {
     const o = spScore[s.key];
     const pct = o.n ? Math.round(o.sum / o.n) : 50;
-    return { ...s, pct };
+    const concl = pct >= 60 ? s.high : (pct <= 40 ? s.low : '平衡中间');
+    return { ...s, pct, concl };
   });
 
   const tier = TIERS.find(t => total >= t.min && total <= t.max) || TIERS[TIERS.length - 1];
@@ -174,6 +176,18 @@ function drawRadar(canvasId, radar) {
   ctx.fillStyle = 'rgba(56,189,248,0.22)'; ctx.fill();
   ctx.strokeStyle = '#38BDF8'; ctx.lineWidth = 2; ctx.stroke();
   pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fillStyle = '#38BDF8'; ctx.fill(); });
+  // 同龄人平均线（虚线）
+  ctx.beginPath();
+  radar.forEach((d, i) => {
+    const v = (d.avg || 50) / 100;
+    const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
+    const x = cx + R * v * Math.cos(ang), y = cy + R * v * Math.sin(ang);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = 'rgba(255,107,157,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.setLineDash([]);
   // 标签
   ctx.font = '12px "Noto Sans SC", sans-serif';
   ctx.fillStyle = '#5b7699'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -192,7 +206,8 @@ function dimNoteOf(d) {
 
 // ==================== 结果页 ====================
 function showResult() {
-  const r = compute();
+  lastResult = compute();
+  const r = lastResult;
   show('result-page');
 
   const diff = r.mentalAge - actualAge;
@@ -256,8 +271,8 @@ function showResult() {
         ${r.radar.map(d => `
           <div class="dm-item">
             <div class="dm-head"><span class="dm-label">${d.label}</span><span class="dm-pct">${d.pct}%</span></div>
-            <div class="dm-bar"><div class="dm-fill" style="width:${d.pct}%;background:${d.color}"></div></div>
-            <div class="dm-note">${dimNoteOf(d)}</div>
+            <div class="dm-bar"><div class="dm-fill" style="width:${d.pct}%;background:${d.color}"></div><span class="dm-avg" style="left:${d.avg}%"></span></div>
+            <div class="dm-note">${dimNoteOf(d)}<span class="dm-diff ${d.pct >= d.avg ? 'up' : 'down'}">${d.pct >= d.avg ? '高于' : '低于'}同龄平均 ${Math.abs(d.pct - d.avg)}%</span></div>
           </div>
         `).join('')}
       </div>
@@ -270,7 +285,7 @@ function showResult() {
         ${r.special.map(s => `
           <div class="sp-item">
             <div class="sp-head">
-              <span class="sp-label">${s.label}</span>
+              <span class="sp-label">${s.label}<span class="sp-concl">${s.concl}</span></span>
               <span class="sp-pct">${s.pct}%</span>
             </div>
             <div class="sp-bar"><div class="sp-fill" style="width:${s.pct}%"></div></div>
@@ -329,7 +344,11 @@ function showResult() {
     <!-- 10 成长锦囊 -->
     <div class="sec fade-enter" style="animation-delay:.38s">
       <div class="sec-title">成长锦囊</div>
-      <div class="golden-box">${r.tier.quote}</div>
+      <div class="quote-card">
+        <div class="qc-quote">“${r.tier.quote}”</div>
+        <div class="qc-comment">${r.tier.comment}</div>
+        <div class="qc-role">—— ${r.tier.role} · ${r.tier.name}</div>
+      </div>
       <div class="ana-card">
         <div class="ana-sub">本周可执行的三个小行动</div>
         <ul class="act-list">${r.tier.actions.map((a, i) => `<li><span class="act-num">${i + 1}</span>${a}</li>`).join('')}</ul>
@@ -341,6 +360,7 @@ function showResult() {
       <div class="foot-score">总分 <strong>${r.total}</strong> / 160</div>
       <div class="foot-btns">
         <button class="fbtn" onclick="restart()">重新测试</button>
+        <button class="fbtn ghost" onclick="shareImage()">保存长图</button>
         <button class="fbtn ghost" onclick="shareResult()">分享结果</button>
       </div>
     </div>
@@ -349,6 +369,155 @@ function showResult() {
   window.scrollTo(0, 0);
   setTimeout(() => drawRadar('radar-canvas', r.radar), 120);
 }
+
+// ==================== 长图分享 ====================
+let currentShareUrl = '';
+function wrapText(ctx, text, x, y, maxW, lineH) {
+  let line = '';
+  for (const ch of text) {
+    if (ctx.measureText(line + ch).width > maxW) { ctx.fillText(line, x, y); line = ch; y += lineH; }
+    else line += ch;
+  }
+  if (line) { ctx.fillText(line, x, y); y += lineH; }
+  return y;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function paintShareRadar(ctx, cx, cy, R, radar) {
+  const n = radar.length;
+  ctx.strokeStyle = 'rgba(31,58,92,0.12)'; ctx.lineWidth = 1;
+  for (let ring = 1; ring <= 4; ring++) {
+    const rr = R * ring / 4;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const ang = -Math.PI / 2 + (i % n) * (2 * Math.PI / n);
+      const x = cx + rr * Math.cos(ang), yy = cy + rr * Math.sin(ang);
+      i === 0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  radar.forEach((d, i) => {
+    const v = d.pct / 100;
+    const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
+    const x = cx + R * v * Math.cos(ang), yy = cy + R * v * Math.sin(ang);
+    i === 0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(56,189,248,0.25)'; ctx.fill();
+  ctx.strokeStyle = '#38BDF8'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath();
+  radar.forEach((d, i) => {
+    const v = (d.avg || 50) / 100;
+    const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
+    const x = cx + R * v * Math.cos(ang), yy = cy + R * v * Math.sin(ang);
+    i === 0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+  });
+  ctx.closePath();
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,107,157,0.75)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#5b7699'; ctx.font = '500 16px "Noto Sans SC", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  radar.forEach((d, i) => {
+    const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
+    ctx.fillText(d.label, cx + (R + 26) * Math.cos(ang), cy + (R + 20) * Math.sin(ang));
+  });
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+}
+function shareImage() {
+  const r = lastResult; if (!r) return;
+  const W = 750, pad = 52;
+  const diff = r.mentalAge - actualAge;
+  const diffWord = diff < 0 ? `年轻${-diff}岁` : diff > 0 ? `成熟${diff}岁` : '同步';
+  const headH = 150, ageH = 150, typeH = 120, radarH = 420;
+  const dimH = 8 * 62 + 70;
+  const quoteH = 260;
+  const spH = r.special.length * 44 + 70;
+  const footH = 100;
+  const H = headH + ageH + typeH + radarH + dimH + quoteH + spH + footH;
+  const cv = document.createElement('canvas');
+  const dpr = 2;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#eef7ff'); bg.addColorStop(.5, '#dceeff'); bg.addColorStop(1, '#cfe4fa');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  let y = 44;
+  ctx.fillStyle = '#5b7699'; ctx.font = '500 20px "Noto Sans SC", sans-serif';
+  ctx.fillText('自我探索 · 真实心理年龄测试', pad, y); y += 34;
+  ctx.fillStyle = '#1f3a5c'; ctx.font = '700 46px "Noto Serif SC", serif';
+  ctx.fillText('心理年龄测试报告', pad, y); y = headH;
+  ctx.fillStyle = '#1f3a5c'; ctx.font = '700 64px "Noto Serif SC", serif';
+  ctx.fillText(`${r.mentalAge}岁`, pad, y + 10);
+  ctx.fillStyle = '#5b7699'; ctx.font = '500 22px "Noto Sans SC", sans-serif';
+  ctx.fillText(`心理年龄 · 比实际${diffWord}`, pad, y + 86);
+  ctx.fillStyle = '#8aa3c0'; ctx.textAlign = 'right'; ctx.fillText(`实际 ${actualAge} 岁`, W - pad, y + 86); ctx.textAlign = 'left';
+  y += ageH;
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; roundRect(ctx, pad, y, W - pad * 2, typeH - 30, 18); ctx.fill();
+  ctx.fillStyle = '#1f3a5c'; ctx.font = '700 34px "Noto Serif SC", serif';
+  ctx.fillText(r.tier.name, pad + 28, y + 30);
+  ctx.fillStyle = '#5b7699'; ctx.font = '400 18px "Noto Sans SC", sans-serif';
+  ctx.fillText('PSYCHE AGE ARCHETYPE', pad + 28, y + 76);
+  y += typeH;
+  paintShareRadar(ctx, W / 2, y + radarH / 2 - 20, 150, r.radar);
+  y += radarH;
+  ctx.fillStyle = '#1f3a5c'; ctx.font = '700 26px "Noto Serif SC", serif';
+  ctx.fillText('八维成熟度', pad, y); y += 44;
+  r.radar.forEach(d => {
+    ctx.fillStyle = '#1f3a5c'; ctx.font = '500 20px "Noto Sans SC", sans-serif';
+    ctx.fillText(d.label, pad, y + 4);
+    ctx.textAlign = 'right'; ctx.fillText(`${d.pct}%`, W - pad, y + 4); ctx.textAlign = 'left';
+    ctx.fillStyle = '#e2eefb'; roundRect(ctx, pad, y + 32, W - pad * 2, 10, 5); ctx.fill();
+    ctx.fillStyle = d.color; roundRect(ctx, pad, y + 32, (W - pad * 2) * d.pct / 100, 10, 5); ctx.fill();
+    ctx.fillStyle = '#FF6B9D'; ctx.fillRect(pad + (W - pad * 2) * d.avg / 100 - 1, y + 28, 2, 18);
+    y += 62;
+  });
+  y += 8;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; roundRect(ctx, pad, y, W - pad * 2, quoteH - 40, 18); ctx.fill();
+  ctx.fillStyle = '#1f3a5c'; ctx.font = '600 26px "Noto Serif SC", serif';
+  let qy = wrapText(ctx, `“${r.tier.quote}”`, pad + 28, y + 28, W - pad * 2 - 56, 38);
+  ctx.fillStyle = '#5b7699'; ctx.font = '400 19px "Noto Sans SC", sans-serif';
+  qy = wrapText(ctx, r.tier.comment, pad + 28, qy + 10, W - pad * 2 - 56, 30);
+  ctx.fillStyle = '#8aa3c0'; ctx.font = '500 18px "Noto Sans SC", sans-serif';
+  ctx.fillText(`—— ${r.tier.role} · ${r.tier.name}`, pad + 28, qy + 8);
+  y += quoteH;
+  ctx.fillStyle = '#1f3a5c'; ctx.font = '700 26px "Noto Serif SC", serif';
+  ctx.fillText('特别视角', pad, y); y += 44;
+  r.special.forEach(s => {
+    ctx.fillStyle = '#5b7699'; ctx.font = '500 20px "Noto Sans SC", sans-serif';
+    ctx.fillText(s.label, pad, y + 2);
+    ctx.fillStyle = '#1d8fc4'; ctx.font = '600 20px "Noto Sans SC", sans-serif';
+    ctx.textAlign = 'right'; ctx.fillText(`${s.concl} ${s.pct}%`, W - pad, y + 2); ctx.textAlign = 'left';
+    y += 44;
+  });
+  y += 6;
+  ctx.fillStyle = '#8aa3c0'; ctx.font = '400 18px "Noto Sans SC", sans-serif';
+  ctx.fillText('测一测你的灵魂几岁了 → self-explore.github.io/mental-age', pad, y + 10);
+  showShareModal(cv.toDataURL('image/png'));
+}
+function showShareModal(url) {
+  currentShareUrl = url;
+  let m = document.getElementById('share-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'share-modal'; m.className = 'share-modal';
+    m.innerHTML = '<div class="sm-inner"><img id="sm-img" alt="结果长图"><div class="sm-btns"><button class="fbtn" id="sm-down">下载图片</button><button class="fbtn ghost" onclick="closeShareModal()">关闭</button></div><p class="sm-tip">移动端可长按图片保存到相册</p></div>';
+    document.body.appendChild(m);
+    document.getElementById('sm-down').onclick = () => {
+      const a = document.createElement('a');
+      a.href = currentShareUrl; a.download = '心理年龄测试报告.png'; a.click();
+    };
+  }
+  document.getElementById('sm-img').src = currentShareUrl;
+  m.classList.add('show');
+}
+function closeShareModal() { const m = document.getElementById('share-modal'); if (m) m.classList.remove('show'); }
 
 function restart() { show('cover-page'); }
 function shareResult() {
