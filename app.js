@@ -125,7 +125,8 @@ function compute() {
   const ratio = (total - tier.min) / Math.max(1, tier.max - tier.min);
   const mentalAge = Math.round(tier.ageFrom + ratio * (tier.ageTo - tier.ageFrom));
 
-  return { total, radar, special, tier, mentalAge };
+  const sorted = [...radar].sort((a, b) => b.pct - a.pct);
+  return { total, radar, special, tier, mentalAge, maxDim: sorted[0], minDim: sorted[sorted.length - 1] };
 }
 
 // ==================== 雷达图 ====================
@@ -151,13 +152,13 @@ function drawRadar(canvasId, radar) {
       const x = cx + rr * Math.cos(ang), y = cy + rr * Math.sin(ang);
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = 'rgba(140,120,80,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = 'rgba(31,58,92,0.12)'; ctx.lineWidth = 1; ctx.stroke();
   }
   for (let i = 0; i < n; i++) {
     const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
     ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.lineTo(cx + R * Math.cos(ang), cy + R * Math.sin(ang));
-    ctx.strokeStyle = 'rgba(140,120,80,0.15)'; ctx.stroke();
+    ctx.strokeStyle = 'rgba(31,58,92,0.10)'; ctx.stroke();
   }
   // 数据
   ctx.beginPath();
@@ -170,16 +171,23 @@ function drawRadar(canvasId, radar) {
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
   ctx.closePath();
-  ctx.fillStyle = 'rgba(160,130,60,0.22)'; ctx.fill();
-  ctx.strokeStyle = '#a0823c'; ctx.lineWidth = 2; ctx.stroke();
-  pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fillStyle = '#a0823c'; ctx.fill(); });
+  ctx.fillStyle = 'rgba(56,189,248,0.22)'; ctx.fill();
+  ctx.strokeStyle = '#38BDF8'; ctx.lineWidth = 2; ctx.stroke();
+  pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fillStyle = '#38BDF8'; ctx.fill(); });
   // 标签
   ctx.font = '12px "Noto Sans SC", sans-serif';
-  ctx.fillStyle = '#6a6252'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#5b7699'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   radar.forEach((d, i) => {
     const ang = -Math.PI / 2 + i * (2 * Math.PI / n);
     ctx.fillText(d.label, cx + (R + 30) * Math.cos(ang), cy + (R + 24) * Math.sin(ang));
   });
+}
+
+// 维度三档解读
+function dimNoteOf(d) {
+  if (d.pct >= 75) return d.note.high;
+  if (d.pct >= 50) return d.note.mid;
+  return d.note.low;
 }
 
 // ==================== 结果页 ====================
@@ -237,7 +245,25 @@ function showResult() {
       </div>
     </div>
 
-    <!-- 5 特别视角（新增） -->
+    <!-- 5 八维成熟度明细 -->
+    <div class="sec fade-enter" style="animation-delay:.18s">
+      <div class="sec-title">八维成熟度明细</div>
+      <div class="ana-card">
+        <div class="dim-extreme">
+          <span class="de-tag good">最突出</span><span>${r.maxDim.label} ${r.maxDim.pct}%</span>
+          <span class="de-tag bad">需关照</span><span>${r.minDim.label} ${r.minDim.pct}%</span>
+        </div>
+        ${r.radar.map(d => `
+          <div class="dm-item">
+            <div class="dm-head"><span class="dm-label">${d.label}</span><span class="dm-pct">${d.pct}%</span></div>
+            <div class="dm-bar"><div class="dm-fill" style="width:${d.pct}%;background:${d.color}"></div></div>
+            <div class="dm-note">${dimNoteOf(d)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- 6 特别视角（新增） -->
     <div class="sec fade-enter" style="animation-delay:.2s">
       <div class="sec-title">特别视角<span class="sec-new">NEW</span></div>
       <div class="special-box">
@@ -282,7 +308,35 @@ function showResult() {
       </div>
     </div>
 
-    <!-- 8 底栏 -->
+    <!-- 9 心智成长坐标 -->
+    <div class="sec fade-enter" style="animation-delay:.34s">
+      <div class="sec-title">心智成长坐标</div>
+      <div class="ana-card">
+        <div class="tl-wrap">
+          ${TIERS.map(t => `
+            <div class="tl-item ${t.name === r.tier.name ? 'cur' : ''}">
+              <div class="tl-dot" style="background:${t.gradient}"></div>
+              <div class="tl-age">${t.ageFrom}-${t.ageTo}岁</div>
+              <div class="tl-name">${t.name}</div>
+              ${t.name === r.tier.name ? '<div class="tl-cur">你在这里</div>' : ''}
+            </div>
+          `).join('')}
+        </div>
+        <p class="para small">你的心理年龄落在「${r.tier.name}」区间（${r.tier.ageFrom}-${r.tier.ageTo} 岁），这是你当前心智所处的成长坐标。</p>
+      </div>
+    </div>
+
+    <!-- 10 成长锦囊 -->
+    <div class="sec fade-enter" style="animation-delay:.38s">
+      <div class="sec-title">成长锦囊</div>
+      <div class="golden-box">${r.tier.quote}</div>
+      <div class="ana-card">
+        <div class="ana-sub">本周可执行的三个小行动</div>
+        <ul class="act-list">${r.tier.actions.map((a, i) => `<li><span class="act-num">${i + 1}</span>${a}</li>`).join('')}</ul>
+      </div>
+    </div>
+
+    <!-- 11 底栏 -->
     <div class="r-foot fade-enter" style="animation-delay:.35s">
       <div class="foot-score">总分 <strong>${r.total}</strong> / 160</div>
       <div class="foot-btns">
