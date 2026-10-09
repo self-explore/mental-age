@@ -219,9 +219,13 @@ button { font-family: inherit; cursor: pointer; }
 .dm-item:last-child { margin-bottom: 0; }
 .dm-head { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
 .dm-pct { color: #1d8fc4; }
-.dm-bar { height: 8px; background: #e2eefb; border-radius: 999px; overflow: hidden; }
+.dm-bar { height: 8px; background: #e2eefb; border-radius: 999px; position: relative; }
 .dm-fill { height: 100%; border-radius: 999px; }
 .dm-note { font-size: 12px; color: var(--ink-soft); margin-top: 5px; line-height: 1.6; }
+.dm-avg { position: absolute; top: -4px; width: 2px; height: 16px; background: var(--dop-pink); border-radius: 1px; }
+.dm-diff { margin-left: 8px; font-weight: 600; }
+.dm-diff.up { color: #149469; }
+.dm-diff.down { color: #e0507a; }
 .tl-wrap { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 16px; }
 .tl-item { flex: 1; text-align: center; opacity: .45; }
 .tl-item.cur { opacity: 1; }
@@ -235,6 +239,22 @@ button { font-family: inherit; cursor: pointer; }
 .act-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.7; color: var(--ink); margin-bottom: 10px; }
 .act-list li:last-child { margin-bottom: 0; }
 .act-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--dop-blue), var(--dop-purple)); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+/* 金句评语卡 */
+.quote-card { background: linear-gradient(135deg, rgba(255,201,60,.16), rgba(255,107,157,.14)); border: 1px solid rgba(255,159,69,.35); border-radius: 18px; padding: 24px; margin-bottom: 16px; position: relative; }
+.quote-card::before { content: '“'; position: absolute; top: 6px; left: 14px; font-family: 'Noto Serif SC', serif; font-size: 56px; color: rgba(255,159,69,.35); line-height: 1; }
+.qc-quote { font-family: 'Noto Serif SC', serif; font-size: 19px; font-weight: 600; line-height: 1.7; color: var(--ink); margin-bottom: 12px; padding-left: 26px; }
+.qc-comment { font-size: 14px; line-height: 1.9; color: var(--ink-soft); margin-bottom: 12px; }
+.qc-role { text-align: right; font-size: 13px; color: var(--dop-pink); font-weight: 600; }
+.sp-concl { display: inline-block; margin-left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(56,189,248,.16); color: #1d8fc4; font-weight: 600; }
+
+/* 长图分享模态 */
+.share-modal { position: fixed; inset: 0; background: rgba(31,58,92,.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.share-modal.show { display: flex; }
+.sm-inner { background: #fff; border-radius: 18px; padding: 16px; max-width: 420px; width: 100%; max-height: 90vh; overflow: auto; text-align: center; }
+.sm-inner img { width: 100%; border-radius: 12px; display: block; }
+.sm-btns { display: flex; gap: 12px; justify-content: center; margin-top: 14px; }
+.sm-tip { font-size: 12px; color: var(--ink-faint); margin-top: 10px; }
 
 @media (min-width: 640px) {
   .duo { grid-template-columns: 1fr 1fr; }
